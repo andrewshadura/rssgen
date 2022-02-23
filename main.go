@@ -160,7 +160,7 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Header().Add("Content-Type", "application/rss+xml; charset=utf8")
-	feed.WriteRss(w)
+	feed.WriteAtom(w)
 }
 
 func main() {
