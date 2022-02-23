@@ -5,6 +5,12 @@ feeds:
     link: https://www.notateslaapp.com/
     spec:
       item: article.index-news-mod
-      title: h1 > a
-      description: p.news-description
-      link: h1 > a
+      values:
+        title: h1 > a
+        desc: div.news-description
+        date: p.date
+      title: '{{ .title.Text }} ({{ .date.Text }})'
+      description: '{{ .desc.Html }}'
+      link: title
+      date: date
+      date_format: January 2, 2006

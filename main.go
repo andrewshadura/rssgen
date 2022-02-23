@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
+	text_template "text/template"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gorilla/feeds"
 	"gopkg.in/yaml.v3"
-
-
 )
 
 type FeedSpec struct {
@@ -20,10 +21,14 @@ type FeedSpec struct {
 	Description string `yaml:"description"`
 	Link        string `yaml:"link"`
 	Spec        struct {
-		Item        string `yaml:"item"`
-		Title       string `yaml:"title"`
-		Description string `yaml:"description"`
-		Link        string `yaml:"link"`
+		Item        string            `yaml:"item"`
+		Values      map[string]string `yaml:"values"`
+		Title       string            `yaml:"title"`
+		Description string            `yaml:"description"`
+		Link        string            `yaml:"link"`
+		Filter      string            `yaml:"filter"`
+		Date        string            `yaml:"date"`
+		DateFormat  string            `yaml:"date_format"`
 	} `yaml:"spec"`
 }
 
@@ -94,19 +99,63 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	titleTmpl := text_template.Must(text_template.New("title").Parse(feedSpec.Spec.Title))
+	descTmpl := text_template.Must(text_template.New("desc").Parse(feedSpec.Spec.Description))
+	filterTmpl := text_template.Must(text_template.New("filter").Parse(feedSpec.Spec.Filter))
+
 	doc.Find(feedSpec.Spec.Item).Each(func(i int, s *goquery.Selection) {
+		values := make(map[string]*goquery.Selection)
+		for name, selector := range feedSpec.Spec.Values {
+			values[name] = s.Find(selector)
+		}
+
 		var link string
-		desc, _ := s.Find(feedSpec.Spec.Description).Html()
-		u, err := base.Parse(s.Find(feedSpec.Spec.Link).AttrOr("href", ""))
+
+		if feedSpec.Spec.Filter != "" {
+			var filterBuilder strings.Builder
+			_ = filterTmpl.Execute(&filterBuilder, values)
+			filter := filterBuilder.String()
+
+			if filter == "false" || filter == "" {
+				return
+			}
+		}
+
+		var titleBuilder strings.Builder
+		_ = titleTmpl.Execute(&titleBuilder, values)
+		title := titleBuilder.String()
+
+		var descBuilder strings.Builder
+		_ = descTmpl.Execute(&descBuilder, values)
+		desc := descBuilder.String()
+
+		u, err := base.Parse(values[feedSpec.Spec.Link].AttrOr("href", ""))
 		if err != nil {
 			link = "failed to parse link: err"
 		} else {
 			link = u.String()
 		}
+
+		date := time.Time{}
+		if feedSpec.Spec.Date != "" {
+			format := time.RFC3339
+			if feedSpec.Spec.DateFormat != "" {
+				format = feedSpec.Spec.DateFormat
+			}
+			unparsed := strings.TrimSpace(values[feedSpec.Spec.Date].Text())
+			if unparsed != "" {
+				parsed, err := time.Parse(format, unparsed)
+				if err == nil {
+					date = parsed
+				}
+			}
+		}
+
 		feed.Items = append(feed.Items, &feeds.Item{
-			Title:       s.Find(feedSpec.Spec.Title).Text(),
+			Title:       title,
 			Link:        &feeds.Link{Href: link},
 			Description: desc,
+			Created:     date,
 		})
 	})
 
