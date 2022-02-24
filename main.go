@@ -20,6 +20,7 @@ type FeedSpec struct {
 	Title       string `yaml:"title"`
 	Description string `yaml:"description"`
 	Link        string `yaml:"link"`
+	Format      string `yaml:"format"`
 	Spec        struct {
 		Item        string            `yaml:"item"`
 		Values      map[string]string `yaml:"values"`
@@ -92,6 +93,11 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 		Items:       []*feeds.Item{},
 	}
 
+	format := strings.ToLower(feedSpec.Format)
+	if format == "" {
+		format = "atom"
+	}
+
 	base, err := url.Parse(feedSpec.Link)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -159,8 +165,17 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 		})
 	})
 
-	w.Header().Add("Content-Type", "application/rss+xml; charset=utf8")
-	feed.WriteAtom(w)
+	switch format {
+	case "atom":
+		w.Header().Add("Content-Type", "application/atom+xml; charset=UTF-8")
+		feed.WriteAtom(w)
+	case "rss":
+		w.Header().Add("Content-Type", "application/rss+xml; charset=UTF-8")
+		feed.WriteRss(w)
+	case "json":
+		w.Header().Add("Content-Type", "application/feed+json; charset=UTF-8")
+		feed.WriteJSON(w)
+	}
 }
 
 func main() {
