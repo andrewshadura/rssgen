@@ -109,6 +109,7 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 	descTmpl := text_template.Must(text_template.New("desc").Parse(feedSpec.Spec.Description))
 	filterTmpl := text_template.Must(text_template.New("filter").Parse(feedSpec.Spec.Filter))
 
+	latestDate := time.Time{}
 	doc.Find(feedSpec.Spec.Item).Each(func(i int, s *goquery.Selection) {
 		values := make(map[string]*goquery.Selection)
 		for name, selector := range feedSpec.Spec.Values {
@@ -156,6 +157,9 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		if date.After(latestDate) {
+			latestDate = date
+		}
 
 		feed.Items = append(feed.Items, &feeds.Item{
 			Title:       title,
@@ -164,6 +168,11 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 			Created:     date,
 		})
 	})
+
+	if !latestDate.IsZero() {
+		feed.Created = latestDate
+		w.Header().Add("Date", latestDate.Format(http.TimeFormat))
+	}
 
 	switch format {
 	case "atom":
