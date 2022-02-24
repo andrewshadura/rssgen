@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	text_template "text/template"
 	"time"
@@ -60,10 +61,18 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 
 func handleFeeds(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Path[len("/feeds/"):]
+
+	ext := path.Ext(id)
+
 	feedSpec, ok := config.Feeds[id]
 	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return
+		id = strings.TrimSuffix(id, ext)
+		feedSpec, ok = config.Feeds[id]
+
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 	}
 
 	res, err := http.Get(feedSpec.Link)
@@ -95,7 +104,11 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 
 	format := strings.ToLower(feedSpec.Format)
 	if format == "" {
-		format = "atom"
+		if ext != "" {
+			format = ext[1:]
+		} else {
+			format = "atom"
+		}
 	}
 
 	base, err := url.Parse(feedSpec.Link)
