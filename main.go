@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"flag"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -174,7 +176,7 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 
 		u, err := base.Parse(values[feedSpec.Spec.Link].AttrOr("href", ""))
 		if err != nil {
-			link = "failed to parse link: err"
+			link = ""
 		} else {
 			link = u.String()
 		}
@@ -208,6 +210,15 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+
+		id := ""
+		if link == "" || link == u.String() {
+			h := sha256.New()
+			h.Write([]byte(title))
+			h.Write([]byte(desc))
+			id = fmt.Sprintf("tag:%s,%s:%x", u.Host, date.Format("2006-01-02"), h.Sum(nil))
+		}
+
 		if date.After(latestDate) {
 			latestDate = date
 		}
@@ -215,6 +226,7 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 		feed.Items = append(feed.Items, &feeds.Item{
 			Title:       title,
 			Link:        &feeds.Link{Href: link},
+			Id:			 id,
 			Description: desc,
 			Created:     date,
 		})
