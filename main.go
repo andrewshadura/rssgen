@@ -126,7 +126,22 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 	doc.Find(feedSpec.Spec.Item).Each(func(i int, s *goquery.Selection) {
 		values := make(map[string]*goquery.Selection)
 		for name, selector := range feedSpec.Spec.Values {
-			values[name] = s.Find(selector)
+			element := s
+			if selector[0] == '+' {
+				element = s.Next()
+				selector = selector[1:]
+			}
+			textonly := false
+			if selector[0] == '@' {
+				textonly = true
+				selector = selector[1:]
+			}
+
+			if textonly {
+				values[name] = element
+			} else {
+				values[name] = element.Find(selector)
+			}
 		}
 
 		var link string
