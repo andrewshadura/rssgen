@@ -8,10 +8,12 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	text_template "text/template"
 	"time"
 
+	"github.com/araddon/dateparse"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gorilla/feeds"
 	"gopkg.in/yaml.v3"
@@ -30,7 +32,9 @@ type FeedSpec struct {
 		Link        string            `yaml:"link"`
 		Filter      string            `yaml:"filter"`
 		Date        string            `yaml:"date"`
+		DateRegex   string            `yaml:"date_regex"`
 		DateFormat  string            `yaml:"date_format"`
+		DateMap     map[string]string `yaml:"date_map"`
 	} `yaml:"spec"`
 }
 
@@ -121,6 +125,10 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 	titleTmpl := text_template.Must(text_template.New("title").Parse(feedSpec.Spec.Title))
 	descTmpl := text_template.Must(text_template.New("desc").Parse(feedSpec.Spec.Description))
 	filterTmpl := text_template.Must(text_template.New("filter").Parse(feedSpec.Spec.Filter))
+	var dateRegex *regexp.Regexp
+	if feedSpec.Spec.DateRegex != "" {
+		dateRegex = regexp.MustCompile(feedSpec.Spec.DateRegex)
+	}
 
 	latestDate := time.Time{}
 	doc.Find(feedSpec.Spec.Item).Each(func(i int, s *goquery.Selection) {
@@ -178,10 +186,25 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 				format = feedSpec.Spec.DateFormat
 			}
 			unparsed := strings.TrimSpace(values[feedSpec.Spec.Date].Text())
+			if dateRegex != nil {
+				match := string(dateRegex.Find([]byte(unparsed)))
+				if match != "" {
+					unparsed = match
+				}
+			}
+			for one, two := range feedSpec.Spec.DateMap {
+				unparsed = strings.ReplaceAll(unparsed, one + " ", two + " ")
+			}
 			if unparsed != "" {
 				parsed, err := time.Parse(format, unparsed)
 				if err == nil {
 					date = parsed
+				} else {
+					var err error
+					date, err = dateparse.ParseLocal(unparsed)
+					if err != nil {
+						log.Println(err)
+					}
 				}
 			}
 		}
