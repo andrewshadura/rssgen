@@ -202,7 +202,6 @@ func handleFeeds(w http.ResponseWriter, r *http.Request) {
 				if err == nil {
 					date = parsed
 				} else {
-					var err error
 					date, err = dateparse.ParseLocal(unparsed)
 					if err != nil {
 						log.Println(err)
