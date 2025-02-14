@@ -1,16 +1,76 @@
 listen: 127.0.0.1:7799
 feeds:
-  not-a-tesla-app:
-    title: Not a Tesla App
-    link: https://www.notateslaapp.com/
+  dutch-bicycles:
+    title: Used Dutch Bicycles for sale
+    link: https://www.used-stuff.example/search.php?q=dutch+bicycle
     spec:
-      item: article.index-news-mod
+      item: .item.flex
       values:
-        title: h1 > a
-        desc: div.news-description
-        date: p.date
-      title: '{{ .title.Text }} ({{ .date.Text }})'
-      description: '{{ .desc.Html }}'
+        title: .itemtext h2
+        date: .itemtext .size10
+        price: .itemprice b
+        location: .itemloc
+        image: .itemtext > a
+        description: .itemtext .desc
+        link: .itemtext > a
+      title: '{{ .title.Text }} ({{ .location.Contents.First.Text }})'
+      description: |
+        {{ .description.Html }}
+        <br />
+        {{ .image.Html }}
+      link: link
+      date: date
+      date_format: '- [2.01. 2006]'
+  lex-legproc:
+    title: New Legislation Proposals
+    link: https://www.lex-proc.example/find-lex-process?filter=1&cur=1&delta=100&orderByCol=date&orderByType=desc
+    spec:
+      item: .lookupResults .table-data tr
+      values:
+        number: td:nth-child(2)
+        title: td:nth-child(3) > a
+        type: td:nth-child(4)
+        date: td:nth-child(5)
+      title: '{{ .date.Text }} — {{ .number.Text }} — {{ .type.Text }}'
+      description: '{{ .title.Html }}'
+      filter: '{{ .date.Text | len | ne 0 }}'
       link: title
       date: date
-      date_format: January 2, 2006
+      date_format: 02.01.2006
+  random-blog:
+    title: Name van Bloog
+    link: http://name.van.bloog/
+    spec:
+      item: 'h2#news ~ h3'
+      values:
+        title: '@'
+        desc: '+@'
+        date: '@'
+      title: '{{ .title.Text }}'
+      description: '{{ .desc.Html }}'
+      filter: '{{ .date.Text | len | ne 0 }}'
+      link: title
+      date: date
+      date_format: 'Mon, _2 jan 2006'
+      date_regex: '(([0-9]?[0-9][.]?|[A-Za-z][a-z]*)  ?[^ ]+ 20[0-9][0-9]|20[0-9][0-9][:-][0-1][0-9][:-][0-3][0-9])'
+      date_map:
+        jan: January
+        januari: January
+        février: February
+        Fev: February
+        Mar: March
+        mars: March
+        maart: March
+        avril: April
+        mai: May
+        mei: May
+        juin: June
+        juni: June
+        juli: July
+        août: August
+        augustus: August
+        sept: September
+        okt: October
+        octobre: October
+        décembre: December
+        .: ''
